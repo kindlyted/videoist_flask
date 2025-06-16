@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <!-- AI视频创作助手部分 -->
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-bold text-primary">AI视频创作助手</h1>
+        <p class="lead text-muted">一键将文章转化为高质量短视频</p>
+    </div>
+    
+    <!-- URL处理卡片 -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-link-45deg"></i> 文章网址处理</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 align-items-center mb-3">
+                <div class="col-md-8">
+                    <input type="url" id="url" class="form-control form-control-lg" placeholder="输入文章网址 (https://...)" autocomplete="off">
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="wordpressSwitch" name="wordpress_switch" checked>
+                            <label class="form-check-label" for="wordpressSwitch">发布到WordPress</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="wechatSwitch" name="wechat_switch" checked>
+                            <label class="form-check-label" for="wechatSwitch">发布到微信公众号</label>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label">内容模式：</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="mode" id="modeRecite" value="朗诵" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="modeRecite">朗诵</label>
+                                
+                                <input type="radio" class="btn-check" name="mode" id="modeDialogue" value="对话" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="modeDialogue">对话</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="processUrl" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-cloud-upload"></i> 上传并处理
+                    </button>
+                </div>
+            </div>
+            
+            <div id="urlResults" style="display: none;">
+                <div class="result-badge">
+                    <i class="bi bi-globe"></i>
+                    <span class="result-label">文章网址:</span>
+                    <span id="websiteUrl" class="result-value"></span>
+                </div>
+                <div class="result-badge">
+                    <i class="bi bi-folder"></i>
+                    <span class="result-label">工作目录:</span>
+                    <span id="workingDir" class="result-value"></span>
+                </div>
+                <div class="result-badge">
+                    <i class="bi bi-wechat"></i>
+                    <span class="result-label">公众号状态:</span>
+                    <span id="wxStatus" class="result-value"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 内容编辑卡片 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-pencil-square"></i> 视频内容编辑
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <div class="textarea-container">
+                        <textarea id="article" class="form-control" rows="8" placeholder="在此输入或粘贴朗诵文稿..."></textarea>
+                        <div class="text-counter"><span id="charcount">0</span> 字</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-grid gap-2">
+                        <button id="generateTitles" class="btn btn-primary">
+                            <i class="bi bi-card-heading"></i> 生成标题
+                        </button>
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">视频标题</label>
+                            <input type="text" id="title" class="form-control" placeholder="视频标题">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="cover" class="form-label">封面描述</label>
+                            <input type="text" id="cover" class="form-control" placeholder="封面描述文字">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="voice" class="form-label">语音选择</label>
+                            <select id="voice" class="form-select">
+                                {% for voice in voice_names %}
+                                <option value="{{ voice }}" {% if voice == default_voice %}selected{% endif %}>
+                                    {{ voice.split('-')[2] }} ({{ voice.split('-')[3] }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 视频生成卡片 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-film"></i> 视频生成
+        </div>
+        <div class="card-body">
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+                <button id="generateVideo" class="btn btn-primary me-md-2">
+                    <i class="bi bi-magic"></i> 生成视频
+                </button>
+                <button id="uploadVideo" class="btn btn-success">
+                    <i class="bi bi-cloud-arrow-up"></i> 上传平台
+                </button>
+            </div>
+            
+            <style>
+                .preview-container {
+                    max-width: 100%;
+                    margin: 0 auto;
+                }
+                .preview-image {
+                    max-width: 100%;
+                    max-height: 60vh;
+                    width: auto;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+                .video-preview {
+                    max-width: 100%;
+                    max-height: 60vh;
+                    width: auto;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                    background: #000;
+                    border-radius: 8px;
+                }
+                @media (max-width: 768px) {
+                    .preview-image, 
+                    .video-preview {
+                        max-height: 50vh;
+                    }
+                    .preview-column {
+                        margin-bottom: 20px;
+                    }
+                }
+            </style>
+            
+            <div class="row">
+                <div class="col-md-6 preview-column">
+                    <div class="mb-3 preview-container">
+                        <h5><i class="bi bi-image"></i> 封面预览</h5>
+                        <img id="coverImage" class="preview-image" alt="封面预览" style="display: none;">
+                    </div>
+                </div>
+                <div class="col-md-6 preview-column">
+                    <div class="mb-3 preview-container">
+                        <h5><i class="bi bi-play-circle"></i> 视频预览</h5>
+                        <video id="outputVideo" class="video-preview" controls style="display: none;">
+                            <source src="" type="video/mp4">
+                            您的浏览器不支持视频播放
+                        </video>
+                        <div class="d-grid mt-2">
+                            <a id="downloadLink" href="#" class="btn btn-outline-primary" style="display: none;">
+                                <i class="bi bi-download"></i> 下载视频
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加必要的JavaScript库 -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 字符计数
+        document.getElementById('article').addEventListener('input', function() {
+            document.getElementById('charcount').textContent = this.value.length;
+        });
+        
+        // 生成标题
+        document.getElementById('generateTitles').addEventListener('click', function() {
+            const text = document.getElementById('article').value;
+            if (!text) {
+                alert('请输入朗诵文稿内容');
+                return;
+            }
+            
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 生成中...';
+            
+            fetch('/generate_titles', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `text=${encodeURIComponent(text)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.innerHTML = '<i class="bi bi-card-heading"></i> 生成标题';
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('title').value = data.title;
+                    document.getElementById('cover').value = data.cover;
+                }
+            })
+            .catch(() => {
+                this.innerHTML = '<i class="bi bi-card-heading"></i> 生成标题';
+            });
+        });
+        
+        // 处理URL
+        document.getElementById('processUrl').addEventListener('click', function() {
+            const url = document.getElementById('url').value;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                alert('请输入有效的网址，以http://或https://开头');
+                return;
+            }
+            
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 处理中...';
+            
+            // 收集表单数据
+            const wordpressSwitch = document.getElementById('wordpressSwitch').checked ? 'on' : 'off';
+            const wechatSwitch = document.getElementById('wechatSwitch').checked ? 'on' : 'off';
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            
+            fetch('/process_url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `url=${encodeURIComponent(url)}&wordpress_switch=${wordpressSwitch}&wechat_switch=${wechatSwitch}&mode=${encodeURIComponent(mode)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.innerHTML = '<i class="bi bi-cloud-upload"></i> 上传并处理';
+                
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // 显示结果区域
+                    document.getElementById('urlResults').style.display = 'block';
+                    
+                    // 填充结果
+                    document.getElementById('websiteUrl').textContent = data.website_url;
+                    document.getElementById('workingDir').textContent = data.working_dir;
+                    
+                    const wxStatus = document.getElementById('wxStatus');
+                    wxStatus.textContent = data.wx_result;
+                    wxStatus.className = data.wx_result.includes('成功') ? 
+                        'result-value status-success' : 'result-value status-failed';
+                    
+                    // 填充文章内容
+                    document.getElementById('article').value = data.article_text;
+                    document.getElementById('charcount').textContent = data.article_text.length;
+                }
+            })
+            .catch(() => {
+                this.innerHTML = '<i class="bi bi-cloud-upload"></i> 上传并处理';
+            });
+        });
+        
+        // 生成视频
+        document.getElementById('generateVideo').addEventListener('click', function() {
+            const text = document.getElementById('article').value;
+            const title = document.getElementById('title').value;
+            const cover = document.getElementById('cover').value;
+            const voice = document.getElementById('voice').value;
+            
+            if (!cover) {
+                alert('请填写封面描述文字');
+                return;
+            }
+            
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 生成中...';
+            
+            fetch('/generate_video', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `text=${encodeURIComponent(text)}&title=${encodeURIComponent(title)}&cover=${encodeURIComponent(cover)}&voice=${encodeURIComponent(voice)}`
+            })
+            .then(response => {
+                // 检查是否需要登录
+                if (response.redirected || response.status === 401 || response.status === 302) {
+                    // 用户未登录，重定向到登录页面
+                    window.location.href = "{{ url_for('auth.login', next=request.path) }}";
+                    throw new Error('需要登录');
+                }
+                return response.json();
+            })
+            .then(data => {
+                this.innerHTML = '<i class="bi bi-magic"></i> 生成视频';
+                
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // 显示封面
+                    const coverImg = document.getElementById('coverImage');
+                    coverImg.src = data.cover_path;
+                    coverImg.style.display = 'block';
+                    
+                    // 显示视频
+                    const video = document.getElementById('outputVideo');
+                    video.src = data.video_path;
+                    video.style.display = 'block';
+                    
+                    // 设置下载链接
+                    const downloadLink = document.getElementById('downloadLink');
+                    downloadLink.href = `/download_video?filename=${encodeURIComponent(data.video_path.split('/').pop())}`;
+                    downloadLink.style.display = 'block';
+                }
+            })
+            .catch(() => {
+                this.innerHTML = '<i class="bi bi-magic"></i> 生成视频';
+            });
+        });
+        
+        // 上传视频
+        document.getElementById('uploadVideo').addEventListener('click', function() {
+            const videoPath = document.getElementById('outputVideo').src;
+            const coverPath = document.getElementById('coverImage').src;
+            const title = document.getElementById('title').value;
+            const desc = document.getElementById('article').value;
+            
+            if (!videoPath || videoPath.includes('#')) {
+                alert('请先生成视频');
+                return;
+            }
+            
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 上传中...';
+            
+            fetch('/upload_video', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `video_path=${encodeURIComponent(videoPath)}&cover_path=${encodeURIComponent(coverPath)}&title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> 上传平台';
+                
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    alert('视频已成功上传到各平台');
+                }
+            })
+            .catch(() => {
+                this.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> 上传平台';
+            });
+        });
+    });
+</script>
+{% endblock %}

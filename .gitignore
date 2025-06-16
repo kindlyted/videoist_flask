@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.py[cod]  # 忽略 .pyc, .pyo, .pyd 文件
+NOTE.txt
+tree.py
+venv/
+main/static/output/**
+!main/static/output/.gitkeep
+instance/

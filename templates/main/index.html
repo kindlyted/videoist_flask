@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="jumbotron text-center mb-4">
+        <h1 class="display-4">欢迎访问!</h1>
+        <p class="lead">今天是 {{ today }}</p>
+        <hr class="my-4">
+        {% if current_user.is_authenticated %}
+            <p>您已登录，可以开始使用我们的服务</p>
+            <div class="mt-4">
+                <a href="{{ url_for('main.video_creator') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-camera-video"></i> 开始创作视频
+                </a>
+                <a href="{{ url_for('auth.dashboard') }}" class="btn btn-outline-primary btn-lg ms-2">
+                    <i class="bi bi-speedometer2"></i> 访问仪表板
+                </a>
+            </div>
+        {% else %}
+            <p>使用AI技术，轻松将文章转化为精美视频</p>
+            <div class="mt-4"></div>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-box-arrow-in-right"></i> 登录
+                </a>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-lg ms-2">
+                    <i class="bi bi-person-plus"></i> 注册
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 功能介绍 -->
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-magic display-4 text-primary mb-3"></i>
+                    <h3 class="card-title">AI智能生成</h3>
+                    <p class="card-text">使用先进的AI技术，自动生成高质量的视频内容，让创作更轻松。</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-clock-history display-4 text-primary mb-3"></i>
+                    <h3 class="card-title">快速高效</h3>
+                    <p class="card-text">只需几分钟，即可将文章转化为精美视频，大大提升内容创作效率。</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-share display-4 text-primary mb-3"></i>
+                    <h3 class="card-title">一键分发</h3>
+                    <p class="card-text">支持多平台内容分发，让您的创作快速触达更多受众。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

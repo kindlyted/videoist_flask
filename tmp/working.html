@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notepad Style Page</title>
+  <style>
+    @font-face {
+      font-family: 'ceym';
+      src: url('../main/static/fonts/ceym.ttf') format('truetype');
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+      width: 1200px;
+      height: 1600px;
+      overflow: hidden;
+    }
+
+    .container {
+      margin: 50px;
+      padding: 20px;
+      padding-top: 100px; /* 顶部留白，避免紧贴边缘 */
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 29px,
+        rgba(173, 216, 230, 0.5) 30px
+      );
+      background-size: 100% 30px;
+      width: calc(100% - 140px);
+      height: calc(100% - 140px);
+      font-family: 'ceym', sans-serif;
+      color: black;
+      white-space: pre-wrap;
+      font-size: 190px;
+      line-height: 1.5; /* 行高 = 字号 × 1.5 */
+      overflow: hidden;
+      text-align: justify;
+    }
+
+    .highlight {
+      background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        yellow 50%
+      );
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="text-container">
+    葡萄牙黄金签证为何火爆到每天13个土豪家庭登陆？新政府为何坚决不取消？ <!-- 从Python传递的文本 -->
+  </div>
+
+  <script>
+    // 从Python传递的关键字（已转换为数组）
+    const keywords = ["\u8461\u8404\u7259\u9ec4\u91d1\u7b7e\u8bc1", "\u571f\u8c6a\u5bb6\u5ead", "\u65b0\u653f\u5e9c"];
+
+    // 移除段首空格
+    function removeLeadingSpaces(text) {
+      return text.replace(/^\s+/gm, '');
+    }
+
+    // 高亮关键字
+    function highlightKeywords() {
+      let container = document.getElementById('text-container');
+      let text = container.innerHTML;
+      text = removeLeadingSpaces(text);
+      keywords.forEach(keyword => {
+        const regex = new RegExp(`(${keyword})`, 'gi');
+        text = text.replace(regex, '<span class="highlight">$1</span>');
+      });
+      container.innerHTML = text;
+    }
+
+    // 动态调整字号以适应容器（行高保持 1.5 倍）
+    function adjustFontSize() {
+      const container = document.getElementById('text-container');
+      let fontSize = 190;
+      while (container.scrollHeight > container.clientHeight && fontSize > 10) {
+        fontSize -= 10;
+        container.style.fontSize = `${fontSize}px`;
+        container.style.lineHeight = `${fontSize * 1.5}px`; // 行高 = 字号 × 1.5
+      }
+    }
+
+    // 初始化
+    highlightKeywords();
+    adjustFontSize();
+  </script>
+</body>
+</html>
