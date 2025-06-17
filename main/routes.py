@@ -13,7 +13,7 @@ from .utils.video_core import (
     process_dialogue,
     merge_subtitles, 
     create_video_multi,
-    # create_video_single, # Linux
+    create_video_single, # Linux
     creating_cover,
     generating_byds,
     extractting, 
@@ -112,7 +112,7 @@ def process_url():
         WORDPRESS_URL = os.getenv('WP_URL')  
         USERNAME = os.getenv('WP_USERNAME')  
         APPLICATION_PASSWORD = os.getenv('WP_PASSWORD')  
-        token = basic_auth_token(USERNAME, APPLICATION_PASSWORD)
+        
         # 标签映射
         tag_index = {
             "国际教育": 7,
@@ -125,6 +125,8 @@ def process_url():
             "留学": 64,
             "移民": 48
         }
+        
+        token = basic_auth_token(USERNAME, APPLICATION_PASSWORD)
         
         # 初始化文章数据
         wp_payload = {
@@ -247,9 +249,11 @@ def generate_video():
         cover_keywords = generating_byds(cover_txt, str(Path(Config.PROMPT_DIR) / 'cover_keywords.prompt'))
         creating_cover(cover_txt, cover_keywords, cover_filename)
         
-        # 生成视频文件
-        create_video_multi(srt_file, audio_filename, output_filename, Config.SCREEN_SIZE, title_txt)
-        # create_video_single(srt_file, audio_filename, output_filename, Config.SCREEN_SIZE, title_txt) #Liunx
+        # 根据操作系统选择不同的视频创建函数
+        if os.name == 'nt':  # Windows系统
+            create_video_multi(srt_file, audio_filename, output_filename, Config.SCREEN_SIZE, title_txt)
+        else:  
+            create_video_single(srt_file, audio_filename, output_filename, Config.SCREEN_SIZE, title_txt)
         
         return jsonify({
             'cover_path': f'/main/static/output/outputs/{base_filename}.png',

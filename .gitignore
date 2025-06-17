@@ -7,3 +7,6 @@ venv/
 main/static/output/**
 !main/static/output/.gitkeep
 instance/
+migrations/versions/
+!migrations/versions/.keep  # 保留空目录占位文件
+migrations/*.py[cod]

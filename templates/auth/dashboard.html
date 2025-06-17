@@ -16,6 +16,23 @@
               <i class="bi bi-gear-fill me-2"></i>设置
             </a>
           </li>
+          
+          <!-- 内容平台管理 -->
+          <li class="nav-item mt-3">
+            <span class="nav-link disabled">
+              <i class="bi bi-share-fill me-2"></i>内容平台
+            </span>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#wordpress-settings">
+              <i class="bi bi-wordpress me-2"></i>WordPress
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#wechat-settings">
+              <i class="bi bi-wechat me-2"></i>微信公众号
+            </a>
+          </li>
           <li class="nav-item">
             <a class="nav-link" href="#">
               <i class="bi bi-info-circle-fill me-2"></i>关于我们
@@ -36,32 +53,152 @@
         <h1 class="h2">{{ current_user.username }}，欢迎回来！</h1>
       </div>
       
-      <!-- 账户信息内容 -->
-      <div class="card">
+      <!-- 账户信息摘要 -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">账户信息</h5>
+              <p class="card-text">
+                <i class="bi bi-person-fill me-2"></i>{{ current_user.username }}
+              </p>
+              <p class="card-text">
+                <i class="bi bi-envelope-fill me-2"></i>{{ current_user.email }}
+              </p>
+              <a href="{{ url_for('auth.account_info') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-right-circle-fill me-2"></i>查看详情
+              </a>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">平台统计</h5>
+              <p class="card-text">
+                <i class="bi bi-wordpress me-2"></i>WordPress站点: {{ wordpress_sites|length }}
+              </p>
+              <p class="card-text">
+                <i class="bi bi-wechat me-2"></i>微信公众号: {{ wechat_accounts|length }}
+              </p>
+              <div class="d-grid gap-2 d-md-block">
+                <a href="{{ url_for('auth.wordpress') }}" class="btn btn-outline-primary me-2">
+                  <i class="bi bi-wordpress me-2"></i>管理
+                </a>
+                <a href="{{ url_for('auth.wechat') }}" class="btn btn-outline-primary">
+                  <i class="bi bi-wechat me-2"></i>管理
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 最近活动 -->
+      <div class="card mt-4">
         <div class="card-body">
-          <h5 class="card-title">账户信息</h5>
-          <div class="row mb-3">
-            <label class="col-sm-2 col-form-label">用户名</label>
-            <div class="col-sm-10">
-              <input type="text" readonly class="form-control-plaintext" value="{{ current_user.username }}">
-            </div>
-          </div>
-          <div class="row mb-3">
-            <label class="col-sm-2 col-form-label">Email</label>
-            <div class="col-sm-10">
-              <input type="text" readonly class="form-control-plaintext" value="{{ current_user.email }}">
-            </div>
-          </div>
-          <div class="row mb-3">
-            <label class="col-sm-2 col-form-label">注册时间</label>
-            <div class="col-sm-10">
-              <input type="text" readonly class="form-control-plaintext" 
-                     value="{{ current_user.created_at.strftime('%Y-%m-%d %H:%M') if current_user.created_at else '未知' }}">
+          <h5 class="card-title">最近活动</h5>
+          <div class="list-group">
+            <div class="list-group-item">
+              <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">系统登录</h6>
+                <small class="text-muted">刚刚</small>
+              </div>
+              <p class="mb-1">您已成功登录系统</p>
             </div>
           </div>
         </div>
       </div>
     </main>
+
+    <!-- WordPress 添加/编辑模态框 -->
+    <div class="modal fade" id="addWordpressModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">添加 WordPress 站点</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="wordpressForm">
+            <input type="hidden" name="id">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">站点名称</label>
+                <input type="text" class="form-control" name="site_name" required>
+              </div>div>
+              <div class="mb-3">
+                <label class="form-label">站点URL</label>
+                <input type="url" class="form-control" name="site_url" placeholder="https://" required>
+              </div>div>
+              <div class="mb-3">
+                <label class="form-label">用户名</label>
+                <input type="text" class="form-control" name="username" required>
+              </div>div>
+              <div class="mb-3">
+                <label class="form-label">API密钥/密码</label>
+                <input type="password" class="form-control" name="api_key" required>
+              </div>
+            </form>div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 微信公众号 添加/编辑模态框 -->
+    <div class="modal fade" id="addWechatModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">添加微信公众号</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="wechatForm">
+            <input type="hidden" name="id">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">公众号名称</label>
+                <input type="text" class="form-control" name="account_name" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">公众号ID</label>
+                <input type="text" class="form-control" name="account_id" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">AppID</label>
+                <input type="text" class="form-control" name="app_id" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">AppSecret</label>
+                <input type="password" class="form-control" name="app_secret" required>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
+<!-- Toast通知 -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+  <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body"></div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 加载JavaScript -->
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
 {% endblock %}

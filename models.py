@@ -61,3 +61,93 @@ class Video(db.Model):
 
     def __repr__(self):
         return f'<Video {self.title}>'
+
+class PlatformConfig(db.Model):
+    __tablename__ = 'platform_configs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    config_name = db.Column(db.String(100), nullable=False)
+    platform_name = db.Column(db.String(50), nullable=False)  # 'wordpress' or 'wechat'
+    config_key = db.Column(db.String(100), nullable=False)
+    config_value = db.Column(db.Text, nullable=False)
+    environment = db.Column(db.String(20), default='production')  # 'development' or 'production'
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', backref='platform_configs')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'platform_name', 'config_key', 'environment', 
+                          name='_user_platform_key_env_uc'),
+    )
+
+    def __repr__(self):
+        return f'<PlatformConfig {self.config_name} for {self.platform_name}>'
+
+class TagMapping(db.Model):
+    __tablename__ = 'tag_mappings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    platform_name = db.Column(db.String(50), nullable=False)  # 'wordpress' or 'wechat'
+    mapping_name = db.Column(db.String(100), nullable=False)
+    tag_name = db.Column(db.String(100), nullable=False)
+    tag_id = db.Column(db.Integer, nullable=False)
+    environment = db.Column(db.String(20), default='production')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='tag_mappings')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'platform_name', 'tag_name', 'environment',
+                          name='_user_platform_tag_env_uc'),
+    )
+
+    def __repr__(self):
+        return f'<TagMapping {self.tag_name}->{self.tag_id} for {self.platform_name}>'
+
+class WordPressSite(db.Model):
+    __tablename__ = 'wordpress_sites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    site_name = db.Column(db.String(100), nullable=False)
+    site_url = db.Column(db.String(255), nullable=False)
+    username = db.Column(db.String(100), nullable=False)
+    api_key = db.Column(db.String(255), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('wordpress_sites', lazy='dynamic'))
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'site_url', name='_user_site_url_uc'),
+    )
+
+    def __repr__(self):
+        return f'<WordPressSite {self.site_name} ({self.site_url})>'
+
+class WechatAccount(db.Model):
+    __tablename__ = 'wechat_accounts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    account_name = db.Column(db.String(100), nullable=False)
+    account_id = db.Column(db.String(100), nullable=False)
+    app_id = db.Column(db.String(100), nullable=False)
+    app_secret = db.Column(db.String(255), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('wechat_accounts', lazy='dynamic'))
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'account_id', name='_user_account_id_uc'),
+    )
+
+    def __repr__(self):
+        return f'<WechatAccount {self.account_name} ({self.account_id})>'

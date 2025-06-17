@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <!-- 左侧导航菜单 -->
+    <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+      <div class="position-sticky pt-3">
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.account_info') }}">
+              <i class="bi bi-person-fill me-2"></i>账户信息
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <i class="bi bi-gear-fill me-2"></i>设置
+            </a>
+          </li>
+          
+          <!-- 内容平台管理 -->
+          <li class="nav-item mt-3">
+            <span class="nav-link disabled">
+              <i class="bi bi-share-fill me-2"></i>内容平台
+            </span>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.wordpress') }}">
+              <i class="bi bi-wordpress me-2"></i>WordPress
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="{{ url_for('auth.wechat') }}">
+              <i class="bi bi-wechat me-2"></i>微信公众号
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <i class="bi bi-info-circle-fill me-2"></i>关于我们
+            </a>
+          </li>
+          <li class="nav-item mt-3">
+            <a class="btn btn-outline-danger" href="{{ url_for('auth.logout') }}">
+              <i class="bi bi-box-arrow-right me-2"></i>退出登录
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 右侧内容区 -->
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">微信公众号管理</h1>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addWechatModal">
+          <i class="bi bi-plus-lg"></i> 添加公众号
+        </button>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>公众号名称</th>
+              <th>公众号ID</th>
+              <th>AppID</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if wechat_accounts %}
+              {% for account in wechat_accounts %}
+              <tr>
+                <td>{{ account.account_name }}</td>
+                <td>{{ account.account_id }}</td>
+                <td>{{ account.app_id }}</td>
+                <td>
+                  <button class="btn btn-sm btn-outline-primary edit-wechat" 
+                          data-bs-toggle="modal" 
+                          data-bs-target="#addWechatModal"
+                          data-id="{{ account.id }}"
+                          data-account_name="{{ account.account_name }}"
+                          data-account_id="{{ account.account_id }}"
+                          data-app_id="{{ account.app_id }}"
+                          data-app_secret="{{ account.app_secret }}">
+                    <i class="bi bi-pencil-fill"></i> 编辑
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger delete-wechat" 
+                          data-id="{{ account.id }}">
+                    <i class="bi bi-trash-fill"></i> 删除
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">暂无配置的微信公众号</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- 微信公众号 添加/编辑模态框 -->
+    <div class="modal fade" id="addWechatModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">添加微信公众号</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="wechatForm">
+            <input type="hidden" name="id">
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">公众号名称</label>
+                <input type="text" class="form-control" name="account_name" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">公众号ID</label>
+                <input type="text" class="form-control" name="account_id" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">AppID</label>
+                <input type="text" class="form-control" name="app_id" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">AppSecret</label>
+                <input type="password" class="form-control" name="app_secret" required>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+              <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast通知 -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+  <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body"></div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 加载JavaScript -->
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
