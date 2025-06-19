@@ -83,10 +83,13 @@
                           data-username="{{ site.username }}">
                     <i class="bi bi-pencil-fill"></i> 编辑
                   </button>
-                  <button class="btn btn-sm btn-outline-danger delete-wordpress" 
-                          data-id="{{ site.id }}">
-                    <i class="bi bi-trash-fill"></i> 删除
-                  </button>
+                  <form class="d-inline delete-wordpress-form" method="POST" action="{{ url_for('auth.delete_wordpress_site') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="site_id" value="{{ site.id }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确定要删除这个站点吗？')">
+                      <i class="bi bi-trash-fill"></i> 删除
+                    </button>
+                  </form>
                 </td>
               </tr>
               {% endfor %}
@@ -105,11 +108,16 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">添加 WordPress 站点</h5>
+            <h5 class="modal-title" id="wordpressModalTitle">添加 WordPress 站点</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <form id="wordpressForm">
+          <form id="wordpressForm" method="POST">
             <input type="hidden" name="id">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div id="idError" class="alert alert-danger d-none">
+              <i class="bi bi-exclamation-triangle-fill"></i> 
+              <span class="error-message"></span>
+            </div>
             <div class="modal-body">
               <div class="mb-3">
                 <label class="form-label">站点名称</label>
@@ -149,6 +157,35 @@
   </div>
 </div>
 
-<!-- 加载JavaScript -->
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-{% endblock %}
+    <!-- 加载JavaScript -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // 编辑按钮点击事件
+        document.querySelectorAll('.edit-wordpress').forEach(button => {
+          button.addEventListener('click', function() {
+            const modal = document.getElementById('addWordpressModal');
+            const form = document.getElementById('wordpressForm');
+            
+            // 更新模态框标题
+            document.getElementById('wordpressModalTitle').textContent = '编辑 WordPress 站点';
+            
+            // 填充表单数据
+            form.querySelector('input[name="id"]').value = this.dataset.id;
+            form.querySelector('input[name="site_name"]').value = this.dataset.site_name;
+            form.querySelector('input[name="site_url"]').value = this.dataset.site_url;
+            form.querySelector('input[name="username"]').value = this.dataset.username;
+            
+            // 显示模态框
+            new bootstrap.Modal(modal).show();
+          });
+        });
+
+        // 添加按钮点击事件 - 重置表单和标题
+        document.querySelector('[data-bs-target="#addWordpressModal"]').addEventListener('click', function() {
+          document.getElementById('wordpressModalTitle').textContent = '添加 WordPress 站点';
+          document.getElementById('wordpressForm').reset();
+        });
+      });
+    </script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% endblock %}

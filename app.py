@@ -1,19 +1,22 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
-from pathlib import Path
 from flask import Flask
 from flask_migrate import Migrate
 from sqlalchemy import inspect
-from extensions import db, login_manager, mail, bootstrap, migrate
+from pathlib import Path
+from extensions import db, login_manager, mail, bootstrap, migrate, csrf
 from config import DevelopmentConfig
-
-# 添加项目根目录到Python路径
-sys.path.append(str(Path(__file__).parent))
 
 def create_app(config_name='development'):
     """创建并配置Flask应用"""
     app = Flask(__name__)
     app.config.from_object(DevelopmentConfig)
+    
+    # 在导入其他模块前确保项目根目录在Python路径中
+    # project_root = str(Path(__file__).parent)
+    # if project_root not in sys.path:
+    #     sys.path.insert(0, project_root)
     
     # 确保instance目录存在
     Path(app.instance_path).mkdir(exist_ok=True)
@@ -22,6 +25,7 @@ def create_app(config_name='development'):
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    csrf.init_app(app)
     
     # 初始化认证模块
     from auth import init_auth
@@ -33,8 +37,10 @@ def create_app(config_name='development'):
     # 注册蓝图
     from auth.routes import auth_bp
     from main.routes import main_bp
+    from note.routes import bp as notes_generator_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+    app.register_blueprint(notes_generator_bp)
     
     return app
 
@@ -42,9 +48,8 @@ def create_app(config_name='development'):
 app = create_app()
 
 if __name__ == '__main__':
-    print("\n🚀 应用启动信息:")
-    print(f"📁 模板目录: {app.jinja_loader.searchpath}")
-    print(f"🌐 服务地址: http://localhost:5009")
-    
+    print("\n应用启动信息:")
+    print(f"模板目录: {app.jinja_loader.searchpath}")
+    print(f"服务地址: http://localhost:5009")
     
     app.run(host='0.0.0.0', port=5009, debug=app.config.get('DEBUG'))

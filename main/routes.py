@@ -1,8 +1,10 @@
 # main/routes.py
 from flask import Blueprint, render_template, request, jsonify, send_file
 from flask_login import login_required
+from extensions import csrf
 from config import Config
 import os
+import sys
 import json
 import asyncio
 from datetime import datetime
@@ -29,6 +31,39 @@ from .utils.video_core import (
 )
 
 from . import main_bp  # 从__init__.py导入蓝图实例
+from models import db, WordPressSite, WechatAccount  # 导入数据库模型
+
+def get_db_credentials(service_name):
+    """从数据库获取指定服务的凭据
+    
+    Args:
+        service_name (str): 服务名称('wordpress'或'wechat')
+    
+    Returns:
+        dict: 包含凭据的字典，格式根据服务类型不同
+    """
+    try:
+        if service_name == 'wordpress':
+            site = WordPressSite.query.filter_by(is_active=True).first()
+            if not site:
+                return {}
+            return {
+                'url': site.site_url,
+                'username': site.username,
+                'password': site.api_key
+            }
+        elif service_name == 'wechat':
+            account = WechatAccount.query.filter_by(is_active=True).first()
+            if not account:
+                return {}
+            return {
+                'app_id': account.app_id,
+                'app_secret': account.app_secret
+            }
+        return {}
+    except Exception as e:
+        print(f"Error fetching {service_name} credentials: {str(e)}")
+        return {}
 
 # --------------------------
 # 基础视图路由
@@ -42,7 +77,20 @@ def index():
 @login_required
 def video_creator():
     """视频创作页面 - 需要登录"""
-    return render_template('main/video_creator.html', voice_names=Config.VOICE_NAMES, default_voice=Config.DEFAULT_VOICE)
+    # 检查WordPress和微信凭证有效性
+    wp_creds = get_db_credentials('wordpress')
+    wechat_creds = get_db_credentials('wechat')
+    
+    wp_creds_valid = all([wp_creds.get('url'), wp_creds.get('username'), wp_creds.get('password')])
+    wechat_creds_valid = all([wechat_creds.get('app_id'), wechat_creds.get('app_secret')])
+    
+    return render_template(
+        'main/video_creator.html', 
+        voice_names=Config.VOICE_NAMES, 
+        default_voice=Config.DEFAULT_VOICE,
+        wp_creds_valid=wp_creds_valid,
+        wechat_creds_valid=wechat_creds_valid
+    )
 
 # --------------------------
 # 视频创作子系统
@@ -54,6 +102,7 @@ def count_chars():
     return jsonify({'count': len(text)})
 
 @main_bp.route('/generate_titles', methods=['POST'])
+@csrf.exempt
 def generate_titles():
     input_text = request.form.get('text', '')
     if not input_text:
@@ -71,8 +120,10 @@ def generate_titles():
         return jsonify({'error': f'生成标题时出错: {str(e)}'}), 500
 
 @main_bp.route('/process_url', methods=['POST'])
+@csrf.exempt
 def process_url():
-    url = request.form.get('url', '')
+    url = request.form.get('url')
+
     if not (url.startswith("http://") or url.startswith("https://")):
         return jsonify({'error': '无效的URL'}), 400
     
@@ -90,9 +141,23 @@ def process_url():
         prompt_file = "broadcastscript.prompt" if mode == "对话" else "audioscript.prompt"
         audioscript = generating_byds(material["content"], str(Config.PROMPT_DIR / prompt_file)) #material["content"]和process_markdown_images中的content不同
         
+        # 从数据库获取凭据
+        wp_creds = get_db_credentials('wordpress')
+        wechat_creds = get_db_credentials('wechat')
+        
         # 检查WordPress和公众号开关状态
-        wordpress_switch = request.form.get('wordpress_switch', 'on')
-        wechat_switch = request.form.get('wechat_switch', 'on')
+        wordpress_switch = request.form.get('wordpress_switch', 'off')
+        wechat_switch = request.form.get('wechat_switch', 'off')
+        
+        # 检查凭据完整性
+        wp_creds_valid = all([wp_creds.get('url'), wp_creds.get('username'), wp_creds.get('password')])
+        wechat_creds_valid = all([wechat_creds.get('app_id'), wechat_creds.get('app_secret')])
+        
+        # 如果凭据为空，强制关闭对应功能
+        # if not wp_creds_valid:
+        #     wordpress_switch = 'off'
+        # if not wechat_creds_valid:
+        #     wechat_switch = 'off'
         if wordpress_switch != 'on' and wechat_switch != 'on':
         
             return jsonify({
@@ -108,10 +173,14 @@ def process_url():
         working_path = Config.ARTICLE_DIR / working_dir
         working_path.mkdir(parents=True, exist_ok=True)  # 自动创建目录
         
-        # WordPress配置
-        WORDPRESS_URL = os.getenv('WP_URL')  
-        USERNAME = os.getenv('WP_USERNAME')  
-        APPLICATION_PASSWORD = os.getenv('WP_PASSWORD')  
+        # WordPress配置 - 从数据库获取
+        # wp_creds = get_db_credentials('wordpress')
+        WORDPRESS_URL = wp_creds.get('url', '')
+        USERNAME = wp_creds.get('username', '')
+        APPLICATION_PASSWORD = wp_creds.get('password', '')
+        # WORDPRESS_URL = os.getenv('WP_URL')
+        # USERNAME = os.getenv('WP_USERNAME')
+        # APPLICATION_PASSWORD = os.getenv('WP_PASSWORD')
         
         # 标签映射
         tag_index = {
@@ -173,7 +242,6 @@ def process_url():
         if request.form.get('wordpress_switch', 'on') == 'on':
             post = posting(WORDPRESS_URL, token, wp_payload)
         
-        
         # 自动上传到微信公众号
         wx_result = None
         if request.form.get('wechat_switch', 'on') == 'on':
@@ -184,8 +252,10 @@ def process_url():
                 f.write(material["content"])
             
             publisher = WeChatPublisher(
-                app_id=os.getenv("WECHAT_APPID"),
-                app_secret=os.getenv("WECHAT_APPSECRET"),
+                app_id=wechat_creds.get('app_id', ''),
+                app_secret=wechat_creds.get('app_secret', ''),
+                # app_id=os.getenv('WECHAT_APPID'),
+                # app_secret=os.getenv('WECHAT_APPSECRET'),
                 article_name=working_dir,
                 source_url=post["link"] if post else ""
             )
@@ -263,6 +333,7 @@ def generate_video():
         return jsonify({'error': f'生成视频时出错: {str(e)}'}), 500
 
 @main_bp.route('/upload_video', methods=['POST'])
+@login_required
 def upload_video():
     video_path = request.form.get('video_path', '')
     cover_path = request.form.get('cover_path', '')
@@ -293,6 +364,7 @@ def upload_video():
         return jsonify({'error': f'上传视频时出错: {str(e)}'}), 500
 
 @main_bp.route('/download_video')
+@login_required
 def download_video():
     filename = request.args.get('filename', '')
     if not filename:

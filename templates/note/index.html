@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">笔记生成</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form id="uploadForm" method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="pdfFile" class="form-label">上传PDF文件</label>
+                    <input class="form-control" type="file" id="pdfFile" name="file" accept=".pdf" required>
+                </div>
+                <button type="submit" class="btn btn-primary">生成笔记</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="resultContainer" class="mt-4" style="display:none;">
+        <h4 class="mb-3">生成的笔记</h4>
+        <div class="card">
+            <div class="card-body">
+                <img id="noteImage" src="" class="img-fluid" alt="生成的笔记">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    formData.append('file', document.getElementById('pdfFile').files[0]);
+    
+    fetch('/notes-generator', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('noteImage').src = data.image_url;
+            document.getElementById('resultContainer').style.display = 'block';
+        } else {
+            alert('生成笔记失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('发生错误，请重试');
+    });
+});
+</script>
+{% endblock %}

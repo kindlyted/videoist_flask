@@ -10,3 +10,9 @@ instance/
 migrations/versions/
 !migrations/versions/.keep  # 保留空目录占位文件
 migrations/*.py[cod]
+videoist_flask.egg-info/
+tmp/*
+!tmp/.keep # 保留空目录占位文件
+start.bat
+tmp/working.html
+

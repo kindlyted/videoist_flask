@@ -1,144 +1,166 @@
 // Dashboard页面JavaScript功能
-document.addEventListener('DOMContentLoaded', function() {
-    // 初始化Toast通知
-    const toastEl = document.getElementById('liveToast');
-    const toast = new bootstrap.Toast(toastEl);
-    
+$(document).ready(function() {
     // 显示通知消息
-    function showToast(message, isSuccess = true) {
-        const toastBody = toastEl.querySelector('.toast-body');
-        toastBody.textContent = message;
-        toastEl.classList.remove('bg-success', 'bg-danger');
-        toastEl.classList.add(isSuccess ? 'bg-success' : 'bg-danger');
-        toast.show();
+    function showToast(type, message) {
+        const toastEl = $('#liveToast');
+        toastEl.find('.toast-body').text(message);
+        toastEl.removeClass('bg-success bg-danger').addClass(type === 'success' ? 'bg-success' : 'bg-danger');
+        toastEl.toast('show');
     }
 
     // WordPress表单提交
-    const wordpressForm = document.getElementById('wordpressForm');
-    if (wordpressForm) {
-        wordpressForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const isEdit = !!formData.get('id');
-            
-            fetch('/api/wordpress', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast(isEdit ? 'WordPress站点更新成功' : 'WordPress站点添加成功');
+    $('#wordpressForm').on('submit', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const formData = new FormData(this);
+        const id = formData.get('id');
+        const isEdit = !!id;
+        
+        // 验证ID格式
+        if (isEdit && !/^\d+$/.test(id)) {
+            showToast('error', '站点ID必须是数字');
+            return;
+        }
+
+        $.ajax({
+            type: isEdit ? 'PUT' : 'POST',
+            url: isEdit ? `/api/wordpress/${id}` : '/api/wordpress',
+            data: formData,
+            processData: false,
+            contentType: false,
+            cache: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('input[name="csrf_token"]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('success', isEdit ? 'WordPress站点更新成功' : 'WordPress站点添加成功');
                     $('#addWordpressModal').modal('hide');
-                    refreshData();
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
                 } else {
-                    showToast(data.message || '操作失败', false);
+                    showToast('error', response.message || '操作失败');
                 }
-            })
-            .catch(error => {
-                showToast('网络错误: ' + error.message, false);
-            });
-        });
-    }
-
-    // WeChat表单提交
-    const wechatForm = document.getElementById('wechatForm');
-    if (wechatForm) {
-        wechatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const isEdit = !!formData.get('id');
-            
-            fetch('/api/wechat', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast(isEdit ? '微信公众号更新成功' : '微信公众号添加成功');
-                    $('#addWechatModal').modal('hide');
-                    refreshData();
-                } else {
-                    showToast(data.message || '操作失败', false);
-                }
-            })
-            .catch(error => {
-                showToast('网络错误: ' + error.message, false);
-            });
-        });
-    }
-
-    // 删除WordPress站点
-    document.querySelectorAll('.delete-wordpress').forEach(btn => {
-        btn.addEventListener('click', function() {
-            if (confirm('确定要删除这个WordPress站点吗？')) {
-                const id = this.dataset.id;
-                fetch(`/api/wordpress/${id}`, {
-                    method: 'DELETE'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast('WordPress站点删除成功');
-                        refreshData();
-                    } else {
-                        showToast(data.error || '删除失败', false);
-                    }
-                });
+            },
+            error: function(xhr) {
+                const errorMsg = xhr.responseJSON && xhr.responseJSON.message 
+                    ? xhr.responseJSON.message 
+                    : '服务器错误，请稍后再试';
+                showToast('error', errorMsg);
             }
         });
+    });
+
+    // 微信公众号表单提交
+    $('#wechatForm').on('submit', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const formData = new FormData(this);
+        const id = formData.get('id');
+        const isEdit = !!id;
+        
+        // 验证ID格式
+        if (isEdit && !/^\d+$/.test(id)) {
+            showToast('error', '公众号ID必须是数字');
+            return;
+        }
+
+        // 将FormData转换为JSON
+        const jsonData = {};
+        formData.forEach((value, key) => jsonData[key] = value);
+        
+        $.ajax({
+            type: 'POST',
+            url: '/api/wechat',
+            data: JSON.stringify(jsonData),
+            contentType: 'application/json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('input[name="csrf_token"]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('success', isEdit ? '微信公众号更新成功' : '微信公众号添加成功');
+                    $('#addWechatModal').modal('hide');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast('error', response.message || '操作失败');
+                }
+            },
+            error: function(xhr) {
+                const errorMsg = xhr.responseJSON && xhr.responseJSON.message 
+                    ? xhr.responseJSON.message 
+                    : '服务器错误，请稍后再试';
+                showToast('error', errorMsg);
+            }
+        });
+    });
+
+    // 删除WordPress站点
+    $('.delete-wordpress').on('click', function() {
+        const id = $(this).data('id');
+        if (confirm('确定要删除这个WordPress站点吗？')) {
+            $.ajax({
+                type: 'DELETE',
+                url: `/api/wordpress/${id}`,
+                success: function(response) {
+                    if (response.success) {
+                        showToast('success', 'WordPress站点删除成功');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    }
+                },
+                error: function(xhr) {
+                    showToast('error', '删除失败: ' + (xhr.responseJSON && xhr.responseJSON.message || '服务器错误'));
+                }
+            });
+        }
     });
 
     // 删除微信公众号
-    document.querySelectorAll('.delete-wechat').forEach(btn => {
-        btn.addEventListener('click', function() {
-            if (confirm('确定要删除这个微信公众号吗？')) {
-                const id = this.dataset.id;
-                fetch(`/api/wechat/${id}`, {
-                    method: 'DELETE'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast('微信公众号删除成功');
-                        refreshData();
-                    } else {
-                        showToast(data.error || '删除失败', false);
+    $('.delete-wechat').on('click', function() {
+        const id = $(this).data('id');
+        if (confirm('确定要删除这个微信公众号吗？')) {
+            $.ajax({
+                type: 'DELETE',
+                url: `/api/wechat/${id}`,
+                success: function(response) {
+                    if (response.success) {
+                        showToast('success', '公众号删除成功');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
                     }
-                });
-            }
-        });
+                },
+                error: function(xhr) {
+                    showToast('error', '删除失败: ' + (xhr.responseJSON && xhr.responseJSON.message || '服务器错误'));
+                }
+            });
+        }
     });
 
-    // 刷新数据
-    function refreshData() {
-        // 简单刷新整个页面
-        window.location.reload();
-        
-        // 更优雅的方式是使用AJAX重新加载数据并更新DOM
-        // 但这需要更复杂的实现
-    }
-
     // 编辑按钮事件委托
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('edit-wordpress')) {
-            const modal = $('#addWordpressModal');
-            modal.find('input[name="id"]').val(e.target.dataset.id);
-            modal.find('input[name="site_name"]').val(e.target.dataset.site_name);
-            modal.find('input[name="site_url"]').val(e.target.dataset.site_url);
-            modal.find('input[name="username"]').val(e.target.dataset.username);
-            modal.modal('show');
-        }
-        
-        if (e.target.classList.contains('edit-wechat')) {
-            const modal = $('#addWechatModal');
-            modal.find('input[name="id"]').val(e.target.dataset.id);
-            modal.find('input[name="account_name"]').val(e.target.dataset.account_name);
-            modal.find('input[name="account_id"]').val(e.target.dataset.account_id);
-            modal.find('input[name="app_id"]').val(e.target.dataset.app_id);
-            modal.find('input[name="app_secret"]').val(e.target.dataset.app_secret);
-            modal.modal('show');
-        }
+    $(document).on('click', '.edit-wordpress', function() {
+        const modal = $('#addWordpressModal');
+        modal.find('input[name="id"]').val($(this).data('id'));
+        modal.find('input[name="site_name"]').val($(this).data('site_name'));
+        modal.find('input[name="site_url"]').val($(this).data('site_url'));
+        modal.find('input[name="username"]').val($(this).data('username'));
+        modal.modal('show');
+    });
+
+    $(document).on('click', '.edit-wechat', function() {
+        const modal = $('#addWechatModal');
+        modal.find('input[name="id"]').val($(this).data('id'));
+        modal.find('input[name="account_name"]').val($(this).data('account_name'));
+        modal.find('input[name="account_id"]').val($(this).data('account_id'));
+        modal.find('input[name="app_id"]').val($(this).data('app_id'));
+        modal.find('input[name="app_secret"]').val($(this).data('app_secret'));
+        modal.modal('show');
     });
 });

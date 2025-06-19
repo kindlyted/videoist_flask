@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from . import auth_bp  # 从当前包导入
 from models import db, User, WordPressSite, WechatAccount
@@ -71,27 +71,93 @@ def account_info():
     return render_template('auth/account_info.html', 
                          title='账户信息')
 
-# WordPress管理页面
-@auth_bp.route('/wordpress')
+# WordPress管理页面1
+@auth_bp.route('/wordpress', methods=['GET', 'POST'])
 @login_required
 def wordpress():
     """WordPress管理页面"""
+    if request.method == 'POST':
+        # 处理表单提交
+        site_id = request.form.get('id')
+        site_name = request.form.get('site_name')
+        site_url = request.form.get('site_url')
+        username = request.form.get('username')
+        api_key = request.form.get('api_key')
+
+        # 验证表单数据
+        if not all([site_name, site_url, username, api_key]):
+            flash('请填写所有必填字段', 'danger')
+            return redirect(url_for('auth.wordpress'))
+
+        # 添加或更新WordPress站点
+        if site_id:
+            # 更新现有站点
+            site = WordPressSite.query.get(site_id)
+            if site and site.user_id == current_user.id:
+                site.site_name = site_name
+                site.site_url = site_url
+                site.username = username
+                site.api_key = api_key
+                db.session.commit()
+                flash('站点更新成功', 'success')
+        else:
+            # 检查是否存在软删除的相同站点
+            existing_site = WordPressSite.query.filter_by(
+                user_id=current_user.id,
+                site_url=site_url
+            ).first()
+            
+            if existing_site:
+                # 恢复软删除的站点
+                existing_site.is_active = True
+                existing_site.site_name = site_name
+                existing_site.username = username
+                existing_site.api_key = api_key
+                flash('站点已恢复', 'success')
+            else:
+                # 添加新站点
+                new_site = WordPressSite(
+                    site_name=site_name,
+                    site_url=site_url,
+                    username=username,
+                    api_key=api_key,
+                    user_id=current_user.id
+                )
+                db.session.add(new_site)
+                flash('站点添加成功', 'success')
+            
+            db.session.commit()
+
+        return redirect(url_for('auth.wordpress'))
+
+    # GET请求处理
     wordpress_sites = current_user.wordpress_sites.filter_by(is_active=True).all()
     return render_template('auth/wordpress.html', 
                          title='WordPress管理',
                          wordpress_sites=wordpress_sites)
 
-# 微信公众号管理页面
-@auth_bp.route('/wechat')
+# 删除WordPress站点2
+@auth_bp.route('/delete-wordpress-site', methods=['POST'])
 @login_required
-def wechat():
-    """微信公众号管理页面"""
-    wechat_accounts = current_user.wechat_accounts.filter_by(is_active=True).all()
-    return render_template('auth/wechat.html', 
-                         title='微信公众号管理',
-                         wechat_accounts=wechat_accounts)
+def delete_wordpress_site():
+    """删除WordPress站点"""
+    site_id = request.form.get('site_id')
+    if not site_id:
+        flash('无效的站点ID', 'danger')
+        return redirect(url_for('auth.wordpress'))
 
-# WordPress站点管理API
+    site = WordPressSite.query.get(site_id)
+    if not site or site.user_id != current_user.id:
+        flash('无权删除该站点', 'danger')
+        return redirect(url_for('auth.wordpress'))
+
+    # 软删除，设置is_active为False
+    site.is_active = False
+    db.session.commit()
+    flash('站点已删除', 'success')
+    return redirect(url_for('auth.wordpress'))
+
+# WordPress站点管理API3
 @auth_bp.route('/api/wordpress', methods=['GET', 'POST'])
 @login_required
 def manage_wordpress():
@@ -100,8 +166,7 @@ def manage_wordpress():
         return jsonify([{
             'id': site.id,
             'site_name': site.site_name,
-            'site_url': site.site_url,
-            'username': site.username
+            'site_url': site.site_url
         } for site in sites])
     
     # POST请求处理添加/更新
@@ -110,43 +175,200 @@ def manage_wordpress():
         return jsonify({'success': False, 'message': '缺少必要参数'}), 400
     
     try:
-        if 'id' in data:
-            # 更新现有站点
-            site = WordPressSite.query.filter_by(id=data['id'], user_id=current_user.id).first()
+        if 'id' in data and data['id']:
+            # 编辑现有站点
+            try:
+                site_id = int(data['id'])
+            except (ValueError, TypeError):
+                return jsonify({
+                    'success': False, 
+                    'message': '无效的站点ID格式',
+                    'expected_format': '整数数字',
+                    'received_value': str(data.get('id'))
+                }), 400
+                
+            site = WordPressSite.query.filter_by(id=site_id, user_id=current_user.id).first()
             if not site:
+                current_app.logger.error(f"WordPress站点不存在或无权访问 - 用户ID: {current_user.id}, 站点ID: {site_id}")
                 return jsonify({'success': False, 'message': '站点不存在或无权访问'}), 404
+                
             site.site_name = data['site_name']
             site.site_url = data['site_url']
             site.username = data['username']
             site.api_key = data['api_key']
         else:
-            # 添加新站点
-            site = WordPressSite(
+            # 添加新站点前检查是否已存在
+            existing_site = WordPressSite.query.filter_by(
                 user_id=current_user.id,
-                site_name=data['site_name'],
-                site_url=data['site_url'],
-                username=data['username'],
-                api_key=data['api_key']
-            )
-            db.session.add(site)
+                site_url=data['site_url']
+            ).first()
+            if existing_site:
+                return jsonify({
+                    'success': False,
+                    'message': '该站点URL已存在，请勿重复添加'
+                }), 400
+                
+            # 检查是否存在软删除的相同站点
+            existing_site = WordPressSite.query.filter_by(
+                user_id=current_user.id,
+                site_url=data['site_url']
+            ).first()
+            
+            if existing_site:
+                # 恢复软删除的站点
+                existing_site.is_active = True
+                existing_site.site_name = data['site_name']
+                existing_site.username = data['username']
+                existing_site.api_key = data['api_key']
+                site = existing_site
+                message = '站点已恢复'
+            else:
+                # 添加新站点
+                site = WordPressSite(
+                    user_id=current_user.id,
+                    site_name=data['site_name'],
+                    site_url=data['site_url'],
+                    username=data['username'],
+                    api_key=data['api_key']
+                )
+                db.session.add(site)
+                message = '站点添加成功'
         
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': '操作成功',
-            'id': site.id
-        })
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': message,
+                'id': site.id
+            })
     except Exception as e:
         db.session.rollback()
         return jsonify({
             'success': False,
             'message': f'服务器错误: {str(e)}'
         }), 500
-    
-    db.session.commit()
-    return jsonify({'success': True})
 
-# 微信公众号管理API
+# 删除WordPress站点API4
+@auth_bp.route('/api/wordpress/<int:id>', methods=['DELETE'])
+@login_required
+def delete_wordpress(id):
+    site = WordPressSite.query.filter_by(id=id, user_id=current_user.id).first()
+    if not site:
+        return jsonify({'error': '站点不存在或无权访问'}), 404
+    
+    try:
+        site.is_active = False
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'删除失败: {str(e)}'
+        }), 500
+
+# WeChat管理页面1
+@auth_bp.route('/wechat', methods=['GET', 'POST'])
+@login_required
+def wechat():
+    """微信公众号管理页面"""
+    if request.method == 'POST':
+        # 处理表单提交（完全匹配样本的变量获取顺序）
+        account_id = request.form.get('id')
+        account_name = request.form.get('account_name')
+        account_id = request.form.get('account_id')
+        app_id = request.form.get('app_id')
+        app_secret = request.form.get('app_secret')
+
+        # 验证表单数据（完全复制样本的验证方式）
+        if not all([account_name, account_id, app_id, app_secret]):
+            flash('请填写所有必填字段', 'danger')
+            return redirect(url_for('auth.wechat'))
+
+        # 添加或更新微信公众号（严格遵循样本的if结构）
+        if account_id:  # 样本使用if site_id:
+            # 更新现有公众号（完全复制样本的查询和更新结构）
+            account = WechatAccount.query.get(account_id)  # 样本使用.get()
+            if account and account.user_id == current_user.id:  # 样本的if组合条件
+                account.account_name = account_name
+                account.account_id = account_id
+                account.app_id = app_id
+                account.app_secret = app_secret
+                db.session.commit()
+                flash('公众号更新成功', 'success')                
+        else:
+            # 添加新公众号（完全复制样本的else结构）
+            existing_account = WechatAccount.query.filter_by(
+                user_id=current_user.id,
+                account_id=account_id
+            ).first()
+            
+            if existing_account:  
+                # 恢复软删除的站点
+                existing_account.is_active = True
+                existing_account.account_name = account_name
+                existing_account.app_id = app_id
+                existing_account.app_secret = app_secret
+                flash('公众号已恢复', 'success')
+            else:
+                # 创建新公众号
+                new_account = WechatAccount(
+                    account_name=account_name,
+                    account_id=account_id,
+                    app_id=app_id,
+                    app_secret=app_secret,
+                    user_id=current_user.id
+                )
+                db.session.add(new_account)
+                flash('公众号添加成功', 'success')
+
+            db.session.commit()
+            
+        return redirect(url_for('auth.wechat'))
+
+    # GET请求处理（完全复制样本的渲染方式）
+    accounts = current_user.wechat_accounts.filter_by(is_active=True).all()
+    return render_template('auth/wechat.html',
+                         title='微信公众号管理',
+                         wechat_accounts=accounts)
+
+# 删除微信公众号账号2
+@auth_bp.route('/delete-wechat-account', methods=['POST'])
+@login_required
+def delete_wechat_account():
+    """删除微信公众号账号"""
+    account_id = request.form.get('account_id')
+    if not account_id:
+        flash('无效的公众号ID', 'danger')
+        current_app.logger.warning('删除微信公众号失败 - 缺少公众号ID')
+        return redirect(url_for('auth.wechat'))
+
+    try:
+        account_id = int(account_id)
+    except (ValueError, TypeError):
+        flash('无效的公众号ID格式', 'danger')
+        current_app.logger.warning(f'删除微信公众号失败 - 无效的ID格式: {account_id}')
+        return redirect(url_for('auth.wechat'))
+
+    account = WechatAccount.query.filter_by(id=account_id, user_id=current_user.id).first()
+    if not account:
+        flash('公众号不存在或无权访问', 'danger')
+        current_app.logger.warning(f'删除微信公众号失败 - 公众号不存在: 用户ID: {current_user.id}, 公众号ID: {account_id}')
+        return redirect(url_for('auth.wechat'))
+
+    try:
+        # 软删除，设置is_active为False
+        account.is_active = False
+        db.session.commit()
+        flash('公众号已删除', 'success')
+        current_app.logger.info(f'成功删除微信公众号 - 用户ID: {current_user.id}, 公众号ID: {account_id}')
+    except Exception as e:
+        db.session.rollback()
+        flash('删除失败，请稍后重试', 'danger')
+        current_app.logger.error(f'删除微信公众号失败 - 用户ID: {current_user.id}, 公众号ID: {account_id}, 错误: {str(e)}', exc_info=True)
+    
+    return redirect(url_for('auth.wechat'))
+
+# 微信公众号管理API3
 @auth_bp.route('/api/wechat', methods=['GET', 'POST'])
 @login_required
 def manage_wechat():
@@ -156,60 +378,157 @@ def manage_wechat():
             'id': account.id,
             'account_name': account.account_name,
             'account_id': account.account_id,
-            'app_id': account.app_id
+            'app_id': account.app_id,
+            'app_secret': account.app_secret
         } for account in accounts])
     
-    # POST请求处理添加/更新
-    data = request.form
-    if not data or 'account_name' not in data or 'account_id' not in data:
-        return jsonify({'success': False, 'message': '缺少必要参数'}), 400
-    
-    try:
-        if 'id' in data:
-            # 更新现有公众号
-            account = WechatAccount.query.filter_by(id=data['id'], user_id=current_user.id).first()
-            if not account:
-                return jsonify({'success': False, 'message': '公众号不存在或无权访问'}), 404
-            account.account_name = data['account_name']
-            account.account_id = data['account_id']
-            account.app_id = data['app_id']
-            account.app_secret = data['app_secret']
-        else:
-            # 添加新公众号
-            account = WechatAccount(
-                user_id=current_user.id,
-                account_name=data['account_name'],
-                account_id=data['account_id'],
-                app_id=data['app_id'],
-                app_secret=data['app_secret']
-            )
-            db.session.add(account)
+    elif request.method == 'POST':
+        # POST请求处理添加/更新
+        data = request.form
+        if not data or 'account_name' not in data or 'account_id' not in data or 'app_id' not in data or 'app_secret' not in data:
+            return jsonify({
+                'success': False, 
+                'message': '缺少必要参数',
+                'required_fields': ['account_name', 'account_id', 'app_id', 'app_secret'],
+                'received_data': dict(data) if data else None
+            }), 400
         
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': '操作成功',
-            'id': account.id
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'服务器错误: {str(e)}'
-        }), 500
+        try:
+            if 'id' in data and data['id']:
+                # 编辑现有公众号
+                try:
+                    account_id = int(data['id'])
+                except (ValueError, TypeError):
+                    current_app.logger.warning(f"无效的公众号ID格式 - 用户ID: {current_user.id}, 输入值: {data.get('id')}")
+                    return jsonify({
+                        'success': False, 
+                        'message': '无效的公众号ID格式',
+                        'expected_format': '整数数字',
+                        'received_value': str(data.get('id'))
+                    }), 400
+                    
+                account = WechatAccount.query.filter_by(id=account_id, user_id=current_user.id).first()
+                if not account:
+                    current_app.logger.error(f"微信公众号不存在或无权访问 - 用户ID: {current_user.id}, 公众号ID: {account_id}")
+                    return jsonify({
+                        'success': False, 
+                        'message': '公众号不存在或无权访问',
+                        'error_code': 'wechat_account_not_found'
+                    }), 404
+                    
+                # 检查是否有其他公众号使用相同的app_id
+                if WechatAccount.query.filter(
+                    WechatAccount.id != account_id,
+                    WechatAccount.user_id == current_user.id,
+                    WechatAccount.app_id == data['app_id']
+                ).first():
+                    return jsonify({
+                        'success': False,
+                        'message': '该AppID已被其他公众号使用',
+                        'error_code': 'duplicate_app_id'
+                    }), 400
+                    
+                account.account_name = data['account_name']
+                account.account_id = data['account_id']
+                account.app_id = data['app_id']
+                account.app_secret = data['app_secret']
+                current_app.logger.info(f"更新微信公众号 - 用户ID: {current_user.id}, 公众号ID: {account_id}")
+            else:
+                # 检查是否存在软删除的相同公众号
+                existing_account = WechatAccount.query.filter(
+                    WechatAccount.user_id == current_user.id,
+                    WechatAccount.account_id == data['account_id'],
+                    WechatAccount.is_active == False
+                ).first()
+                
+                if existing_account:
+                    # 恢复软删除的公众号
+                    existing_account.is_active = True
+                    existing_account.account_name = data['account_name']
+                    existing_account.app_id = data['app_id']
+                    existing_account.app_secret = data['app_secret']
+                    account = existing_account
+                    message = '公众号已恢复'
+                    current_app.logger.info(f"恢复微信公众号 - 用户ID: {current_user.id}, 公众号ID: {data['account_id']}")
+                else:
+                    # 检查AppID是否重复
+                    if WechatAccount.query.filter_by(
+                        user_id=current_user.id,
+                        app_id=data['app_id']
+                    ).first():
+                        current_app.logger.warning(f"尝试添加重复的微信公众号AppID - 用户ID: {current_user.id}, AppID: {data['app_id']}")
+                        return jsonify({
+                            'success': False,
+                            'message': '该微信公众号AppID已存在，请勿重复添加',
+                            'error_code': 'duplicate_wechat_account'
+                        }), 400
+                    
+                    # 添加新公众号
+                    account = WechatAccount(
+                        user_id=current_user.id,
+                        account_name=data['account_name'],
+                        account_id=data['account_id'],
+                        app_id=data['app_id'],
+                        app_secret=data['app_secret']
+                    )
+                    db.session.add(account)
+                    message = '公众号添加成功'
+                    current_app.logger.info(f"添加新微信公众号 - 用户ID: {current_user.id}, 公众号名称: {data['account_name']}")
+            
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': '操作成功',
+                'id': account.id,
+                'account_name': account.account_name
+            })
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"微信公众号操作失败 - 用户ID: {current_user.id}, 错误: {str(e)}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': f'服务器错误: {str(e)}',
+                'error_code': 'server_error'
+            }), 500
+    
+    elif request.method == 'DELETE':
+        # 处理删除请求
+        data = request.form
+        if not data or 'id' not in data:
+            return jsonify({
+                'success': False,
+                'message': '缺少公众号ID参数'
+            }), 400
+            
+        try:
+            account_id = int(data['id'])
+        except (ValueError, TypeError):
+            return jsonify({
+                'success': False,
+                'message': '无效的公众号ID格式'
+            }), 400
+            
+        account = WechatAccount.query.filter_by(id=account_id, user_id=current_user.id).first()
+        if not account:
+            return jsonify({
+                'success': False,
+                'message': '公众号不存在或无权访问'
+            }), 404
+            
+        try:
+            account.is_active = False
+            db.session.commit()
+            current_app.logger.info(f"删除微信公众号 - 用户ID: {current_user.id}, 公众号ID: {account_id}")
+            return jsonify({'success': True})
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"删除微信公众号失败 - 用户ID: {current_user.id}, 公众号ID: {account_id}, 错误: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'删除失败: {str(e)}'
+            }), 500
 
-# 删除WordPress站点
-@auth_bp.route('/api/wordpress/<int:id>', methods=['DELETE'])
-@login_required
-def delete_wordpress(id):
-    site = WordPressSite.query.filter_by(id=id, user_id=current_user.id).first()
-    if not site:
-        return jsonify({'error': '站点不存在或无权访问'}), 404
-    site.is_active = False
-    db.session.commit()
-    return jsonify({'success': True})
-
-# 删除微信公众号
+# 删除微信公众号API4
 @auth_bp.route('/api/wechat/<int:id>', methods=['DELETE'])
 @login_required
 def delete_wechat(id):

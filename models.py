@@ -124,7 +124,9 @@ class WordPressSite(db.Model):
     user = db.relationship('User', backref=db.backref('wordpress_sites', lazy='dynamic'))
 
     __table_args__ = (
-        db.UniqueConstraint('user_id', 'site_url', name='_user_site_url_uc'),
+        db.UniqueConstraint('user_id', 'site_url', 'is_active', name='_user_site_url_active_uc'),
+        db.Index('ix_wordpress_sites_user_id', 'user_id'),
+        db.Index('ix_wordpress_sites_site_url', 'site_url'),
     )
 
     def __repr__(self):
@@ -146,7 +148,9 @@ class WechatAccount(db.Model):
     user = db.relationship('User', backref=db.backref('wechat_accounts', lazy='dynamic'))
 
     __table_args__ = (
-        db.UniqueConstraint('user_id', 'account_id', name='_user_account_id_uc'),
+        db.UniqueConstraint('user_id', 'account_id', 'is_active', name='_user_account_id_active_uc'),
+        db.Index('ix_wechat_accounts_user_id', 'user_id'),
+        db.Index('ix_wechat_accounts_account_id', 'account_id'),
     )
 
     def __repr__(self):
