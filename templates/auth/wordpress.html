@@ -158,34 +158,5 @@
 </div>
 
     <!-- 加载JavaScript -->
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        // 编辑按钮点击事件
-        document.querySelectorAll('.edit-wordpress').forEach(button => {
-          button.addEventListener('click', function() {
-            const modal = document.getElementById('addWordpressModal');
-            const form = document.getElementById('wordpressForm');
-            
-            // 更新模态框标题
-            document.getElementById('wordpressModalTitle').textContent = '编辑 WordPress 站点';
-            
-            // 填充表单数据
-            form.querySelector('input[name="id"]').value = this.dataset.id;
-            form.querySelector('input[name="site_name"]').value = this.dataset.site_name;
-            form.querySelector('input[name="site_url"]').value = this.dataset.site_url;
-            form.querySelector('input[name="username"]').value = this.dataset.username;
-            
-            // 显示模态框
-            new bootstrap.Modal(modal).show();
-          });
-        });
-
-        // 添加按钮点击事件 - 重置表单和标题
-        document.querySelector('[data-bs-target="#addWordpressModal"]').addEventListener('click', function() {
-          document.getElementById('wordpressModalTitle').textContent = '添加 WordPress 站点';
-          document.getElementById('wordpressForm').reset();
-        });
-      });
-    </script>
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
     {% endblock %}

@@ -80,8 +80,7 @@
                           data-id="{{ account.id }}"
                           data-account_name="{{ account.account_name }}"
                           data-account_id="{{ account.account_id }}"
-                          data-app_id="{{ account.app_id }}"
-                          data-app_secret="{{ account.app_secret }}">
+                          data-app_id="{{ account.app_id }}">
                     <i class="bi bi-pencil-fill"></i> 编辑
                   </button>
                   <form class="d-inline delete-wechat-form" method="POST" action="{{ url_for('auth.delete_wechat_account') }}">
@@ -158,75 +157,6 @@
   </div>
 </div>
 
-<!-- 加载JavaScript -->
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // 编辑按钮点击事件
-    document.querySelectorAll('.edit-wechat').forEach(button => {
-      button.addEventListener('click', function() {
-        const modal = document.getElementById('addWechatModal');
-        const form = document.getElementById('wechatForm');
-        
-        // 更新模态框标题
-        document.getElementById('wechatModalTitle').textContent = '编辑微信公众号';
-        
-        // 填充表单数据
-        form.querySelector('input[name="id"]').value = this.dataset.id;
-        form.querySelector('input[name="account_name"]').value = this.dataset.account_name;
-        form.querySelector('input[name="account_id"]').value = this.dataset.account_id;
-        form.querySelector('input[name="app_id"]').value = this.dataset.app_id;
-        form.querySelector('input[name="app_secret"]').value = this.dataset.app_secret;
-        
-        // 显示模态框
-        new bootstrap.Modal(modal).show();
-      });
-    });
-
-    // 添加按钮点击事件 - 重置表单和标题
-    document.querySelector('[data-bs-target="#addWechatModal"]').addEventListener('click', function() {
-      document.getElementById('wechatModalTitle').textContent = '添加微信公众号';
-      document.getElementById('wechatForm').reset();
-    });
-
-    // 表单提交处理
-    document.getElementById('wechatForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const formData = new FormData(this);
-      const errorDiv = document.getElementById('wechatIdError');
-      errorDiv.classList.add('d-none');
-      
-                fetch("{{ url_for('auth.manage_wechat') }}", {
-                  method: 'POST',
-                  body: formData,
-                  headers: {
-                    'X-CSRFToken': formData.get('csrf_token'),
-                    'Accept': 'application/json'
-                  }
-                })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // 显示成功通知
-          const toast = new bootstrap.Toast(document.getElementById('liveToast'));
-          document.querySelector('.toast-body').textContent = data.message || '操作成功';
-          toast.show();
-          
-          // 关闭模态框并刷新页面
-          bootstrap.Modal.getInstance(document.getElementById('addWechatModal')).hide();
-          setTimeout(() => location.reload(), 1000);
-        } else {
-          errorDiv.querySelector('.error-message').textContent = data.message || '操作失败';
-          errorDiv.classList.remove('d-none');
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        const toast = new bootstrap.Toast(document.getElementById('liveToast'));
-        document.querySelector('.toast-body').textContent = '网络错误，请稍后重试';
-        toast.show();
-      });
-    });
-  });
-</script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-{% endblock %}
+    <!-- 加载JavaScript -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% endblock %}

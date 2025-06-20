@@ -1,5 +1,64 @@
 // Dashboard页面JavaScript功能
+// 确保jQuery已加载
+if (typeof jQuery == 'undefined') {
+    console.error('错误：jQuery未正确加载！请检查：');
+    console.error('1. base.html中是否包含jQuery引用');
+    console.error('2. jQuery是否在dashboard.js之前加载');
+    throw new Error('jQuery未正确加载');
+}
+
 $(document).ready(function() {
+        // WordPress编辑按钮点击事件
+        $('.edit-wordpress').on('click', function() {
+            const $modal = $('#addWordpressModal');
+            const $form = $('#wordpressForm');
+            
+            // 更新模态框标题
+            $('#wordpressModalTitle').text('编辑 WordPress 站点');
+            
+            // 填充表单数据
+            $form.find('input[name="id"]').val($(this).data('id'));
+            $form.find('input[name="site_name"]').val($(this).data('site-name'));
+            $form.find('input[name="site_url"]').val($(this).data('site-url'));
+            $form.find('input[name="username"]').val($(this).data('username'));
+            
+            // 显示模态框
+            $modal.modal('show');
+        });
+
+        // 添加按钮点击事件 - 重置表单和标题
+        $('[data-bs-target="#addWordpressModal"]').on('click', function() {
+            $('#wordpressModalTitle').text('添加 WordPress 站点');
+            $('#wordpressForm')[0].reset();
+        });
+
+        // 微信公众号编辑按钮点击事件
+        $(document).on('click', '.edit-wechat', function() {
+            const $modal = $('#addWechatModal');
+            const $form = $('#wechatForm');
+            
+            // 更新模态框标题
+            $('#wechatModalTitle').text('编辑微信公众号');
+            
+            // 填充表单数据
+            $form.find('input[name="id"]').val($(this).data('id'));
+            $form.find('input[name="account_name"]').val($(this).data('account-name'));
+            $form.find('input[name="account_id"]').val($(this).data('account-id'));
+            $form.find('input[name="app_id"]').val($(this).data('app-id'));
+            
+            // 显示模态框
+            $modal.modal('show');
+            
+            // 阻止默认行为
+            return false;
+        });
+
+        // 微信公众号添加按钮点击事件 - 重置表单和标题
+        $('[data-bs-target="#addWechatModal"]').on('click', function() {
+            $('#wechatModalTitle').text('添加微信公众号');
+            $('#wechatForm')[0].reset();
+        });
+
     // 显示通知消息
     function showToast(type, message) {
         const toastEl = $('#liveToast');
@@ -67,15 +126,13 @@ $(document).ready(function() {
             return;
         }
 
-        // 将FormData转换为JSON
-        const jsonData = {};
-        formData.forEach((value, key) => jsonData[key] = value);
-        
         $.ajax({
-            type: 'POST',
-            url: '/api/wechat',
-            data: JSON.stringify(jsonData),
-            contentType: 'application/json',
+            type: isEdit ? 'PUT' : 'POST',
+            url: isEdit ? `/api/wechat/${id}` : '/api/wechat',
+            data: formData,
+            processData: false,
+            contentType: false,
+            cache: false,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('input[name="csrf_token"]').val()
@@ -160,7 +217,39 @@ $(document).ready(function() {
         modal.find('input[name="account_name"]').val($(this).data('account_name'));
         modal.find('input[name="account_id"]').val($(this).data('account_id'));
         modal.find('input[name="app_id"]').val($(this).data('app_id'));
-        modal.find('input[name="app_secret"]').val($(this).data('app_secret'));
         modal.modal('show');
+    });
+
+    // 调试WordPress模态框
+    console.log('初始化WordPress模态框事件');
+    
+    $('#addWordpressModal').on('show.bs.modal', function() {
+        console.log('WordPress模态框显示');
+    });
+    
+    $('#addWordpressModal').on('hidden.bs.modal', function () {
+        console.log('WordPress模态框隐藏');
+        // 重置表单
+        $(this).find('form')[0].reset();
+        // 重置标题
+        $(this).find('.modal-title').text('添加 WordPress 站点');
+        // 清除隐藏的ID字段
+        $(this).find('input[name="id"]').val('');
+    });
+
+    // 手动绑定取消按钮
+    $(document).on('click', '[data-bs-dismiss="modal"]', function() {
+        console.log('取消按钮点击');
+        $(this).closest('.modal').modal('hide');
+    });
+
+    // 微信公众号模态框隐藏事件
+    $('#addWechatModal').on('hidden.bs.modal', function () {
+        // 重置表单
+        $(this).find('form')[0].reset();
+        // 重置标题
+        $(this).find('.modal-title').text('添加微信公众号');
+        // 清除隐藏的ID字段
+        $(this).find('input[name="id"]').val('');
     });
 });

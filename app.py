@@ -13,11 +13,6 @@ def create_app(config_name='development'):
     app = Flask(__name__)
     app.config.from_object(DevelopmentConfig)
     
-    # 在导入其他模块前确保项目根目录在Python路径中
-    # project_root = str(Path(__file__).parent)
-    # if project_root not in sys.path:
-    #     sys.path.insert(0, project_root)
-    
     # 确保instance目录存在
     Path(app.instance_path).mkdir(exist_ok=True)
     
