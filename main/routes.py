@@ -1,6 +1,5 @@
 # main/routes.py
 import os
-import sys
 import json
 import asyncio
 from datetime import datetime
@@ -9,19 +8,19 @@ from flask import Blueprint, render_template, request, jsonify, send_file
 from flask_login import login_required
 from extensions import csrf
 from config import Config
-from .utils.publisher_core import WeChatPublisher
+from . import main_bp  # 蓝图导入放在其他本地导入之前
 from .utils.video_core import (
-    speaking, 
+    speaking,
     process_dialogue,
-    merge_subtitles, 
+    merge_subtitles,
     create_video_multi,
-    create_video_single, # Linux
+    create_video_single,  # Linux
     creating_cover,
     generating_byds,
-    extractting, 
-    basic_auth_token, 
-    generating_jskb,  
-    process_markdown_images, 
+    extractting,
+    basic_auth_token,
+    generating_jskb,
+    process_markdown_images,
     posting,
     markdown_to_html,
     convert_webp_to_jpg,
@@ -29,41 +28,8 @@ from .utils.video_core import (
     sph_video_upload,
     xhs_video_upload
 )
-
-from . import main_bp  # 从__init__.py导入蓝图实例
-from models import db, WordPressSite, WechatAccount  # 导入数据库模型
-
-def get_db_credentials(service_name):
-    """从数据库获取指定服务的凭据
-    
-    Args:
-        service_name (str): 服务名称('wordpress'或'wechat')
-    
-    Returns:
-        dict: 包含凭据的字典，格式根据服务类型不同
-    """
-    try:
-        if service_name == 'wordpress':
-            site = WordPressSite.query.filter_by(is_active=True).first()
-            if not site:
-                return {}
-            return {
-                'url': site.site_url,
-                'username': site.username,
-                'password': site.api_key
-            }
-        elif service_name == 'wechat':
-            account = WechatAccount.query.filter_by(is_active=True).first()
-            if not account:
-                return {}
-            return {
-                'app_id': account.app_id,
-                'app_secret': account.app_secret
-            }
-        return {}
-    except Exception as e:
-        print(f"Error fetching {service_name} credentials: {str(e)}")
-        return {}
+from .utils.publisher_core import WeChatPublisher
+from .utils.db_utils import get_db_credentials
 
 # --------------------------
 # 基础视图路由

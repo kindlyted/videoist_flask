@@ -82,8 +82,16 @@ $(document).ready(function() {
         }
 
         $.ajax({
-            type: isEdit ? 'PUT' : 'POST',
-            url: isEdit ? `/api/wordpress/${id}` : '/api/wordpress',
+            type: 'POST',
+            url: '/api/wordpress',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                id: isEdit ? id : null,
+                site_name: $('#site-name').val(),
+                site_url: $('#site-url').val(),
+                username: $('#username').val(),
+                api_key: $('#api-key').val()
+            }),
             data: formData,
             processData: false,
             contentType: false,
@@ -127,8 +135,15 @@ $(document).ready(function() {
         }
 
         $.ajax({
-            type: isEdit ? 'PUT' : 'POST',
-            url: isEdit ? `/api/wechat/${id}` : '/api/wechat',
+            type: 'POST',
+            url: '/api/wechat',
+            data: {
+                id: isEdit ? id : null,
+                account_name: $('#account-name').val(),
+                app_id: $('#app-id').val(),
+                app_secret: $('#app-secret').val(),
+                csrf_token: $('input[name="csrf_token"]').val()
+            },
             data: formData,
             processData: false,
             contentType: false,
