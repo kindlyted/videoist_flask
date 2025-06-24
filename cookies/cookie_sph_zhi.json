@@ -1,0 +1,22 @@
+[
+  {
+    "name": "sessionid",
+    "value": "BgAA5WerQW3bBODzLdC%2BTmpugmSiTDfXLF2ROEYl6vOqdHDY63zz1zGmbGV1S6c6Tz%2BjkRe1M%2FAD5bKORsZUKYmC6BcC4GBL9UFVXrVDE2eh",
+    "domain": "channels.weixin.qq.com",
+    "path": "/",
+    "expires": 1785302006.31369,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "wxuin",
+    "value": "4126002647",
+    "domain": "channels.weixin.qq.com",
+    "path": "/",
+    "expires": 1785302006.31376,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  }
+]

@@ -140,13 +140,9 @@ def process_url():
         working_path.mkdir(parents=True, exist_ok=True)  # 自动创建目录
         
         # WordPress配置 - 从数据库获取
-        # wp_creds = get_db_credentials('wordpress')
         WORDPRESS_URL = wp_creds.get('url', '')
         USERNAME = wp_creds.get('username', '')
         APPLICATION_PASSWORD = wp_creds.get('password', '')
-        # WORDPRESS_URL = os.getenv('WP_URL')
-        # USERNAME = os.getenv('WP_USERNAME')
-        # APPLICATION_PASSWORD = os.getenv('WP_PASSWORD')
         
         # 标签映射
         tag_index = {
@@ -220,8 +216,6 @@ def process_url():
             publisher = WeChatPublisher(
                 app_id=wechat_creds.get('app_id', ''),
                 app_secret=wechat_creds.get('app_secret', ''),
-                # app_id=os.getenv('WECHAT_APPID'),
-                # app_secret=os.getenv('WECHAT_APPSECRET'),
                 article_name=working_dir,
                 source_url=post["link"] if post else ""
             )
@@ -245,8 +239,8 @@ def generate_video():
     cover_txt = request.form.get('cover', '')
     voice = request.form.get('voice', Config.VOICE_NAMES[4])
     VOICE_MAPPING = {
-    "demomo": "zh-CN-YunxiNeural",
-    "lasisi": "zh-CN-XiaoxiaoNeural"
+    "傣momo": "zh-CN-YunxiNeural",
+    "喇cici": "zh-CN-XiaoxiaoNeural"
     }
     if not cover_txt:
         return jsonify({'error': '请补充封面描述'}), 400
@@ -299,30 +293,32 @@ def generate_video():
         return jsonify({'error': f'生成视频时出错: {str(e)}'}), 500
 
 @main_bp.route('/upload_video', methods=['POST'])
-@login_required
+@csrf.exempt
 def upload_video():
-    video_path = request.form.get('video_path', '')
-    cover_path = request.form.get('cover_path', '')
+    video_url = request.form.get('video_path', '')
+    print(f"Received video URL: {video_url}")
+    cover_url = request.form.get('cover_path', '')
+    base_filename = video_url.split('/')[-1].split('.')[0]
+    # 转换为磁盘路径
+    video_path = Path(Config.OUTPUT_DIR) / f'{base_filename}.mp4'
+    cover_path = Path(Config.OUTPUT_DIR) / f'{base_filename}.png' 
     title = request.form.get('title', '')
     desc = request.form.get('desc', '')
     
-    if not all([video_path, cover_path, title]):
-        return jsonify({'error': '缺少必要参数'}), 400
-    
     try:
         # 上传小红书 
-        acct_info = "./cookies/cookie_xhs_zhi.json"
+        acct_info = Path(Config.MAIN_STATIC_FOLDER) / 'cookies' / 'cookie_xhs_zhi.json'
         xhs_result = xhs_video_upload(video_path, cover_path, title, desc, acct_info)
         
         # 上传抖音
-        acct_info = "./cookies/cookie_douyin_zhi.json"
+        acct_info = Path(Config.MAIN_STATIC_FOLDER) / 'cookies' / 'cookie_douyin_zhi.json'
         dy_result = dy_video_upload(video_path, cover_path, title, desc, acct_info)
         
         # 上传视频号
-        # acct_info = "./cookies/cookie_sph_zhi.json"
-        # sph_result = sph_video_upload(video_path, cover_path, title, desc, acct_info)
+        acct_info = Path(Config.MAIN_STATIC_FOLDER) / 'cookies' / 'cookie_sph_zhi.json'
+        sph_result = sph_video_upload(video_path, cover_path, title, desc, acct_info)
         
-        if xhs_result and dy_result:  # 可根据实际需求调整判断逻辑
+        if xhs_result and dy_result and sph_result:  # 可根据实际需求调整判断逻辑
             return jsonify({'message': '视频已成功上传到各平台'})
         else:
             return jsonify({'error': '部分平台上传失败'}), 500
