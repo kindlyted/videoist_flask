@@ -603,7 +603,7 @@ def create_video_single(srt_filename, audio_filename, output_filename, screen_si
         print(f"生成失败: {str(e)}")
         return False
      
-# 创建封面postist和videoist共用
+# 创建封面postist和videoist共用，playwright替代selenium
 def creating_cover(text, keywords, cover_filename) -> None:
 
     # 确保 keywords 是一个列表
@@ -611,9 +611,8 @@ def creating_cover(text, keywords, cover_filename) -> None:
         keywords = keywords.split(',')
 
     # 设置路径
-    html_template_path = Config.HTML_DIR / 'template-xhscover.html'
+    html_template_path = './html/template-xhscover.html'
     html_file_path = Path('./tmp/working.html').resolve()
-    os.makedirs(html_file_path.parent, exist_ok=True)
 
     # 渲染HTML模板
     with open(html_template_path, 'r', encoding='utf-8') as file:
@@ -624,36 +623,34 @@ def creating_cover(text, keywords, cover_filename) -> None:
     with open(html_file_path, 'w', encoding='utf-8') as file:
         file.write(html_content)
 
-    # 设置Chrome选项
-    driver_path = os.getenv('CHROME_DRIVER_PATH')
-    if not driver_path:
-        raise ValueError("环境变量 CHROME_DRIVER_PATH 未设置，请指定ChromeDriver路径。")
-    service = Service(driver_path)
-    chrome_options = Options()
-    chrome_options.add_argument('--headless')  # 无头模式，不显示浏览器窗口
-
-    # 启动Chrome浏览器
-    driver = webdriver.Chrome(options=chrome_options, service=service)
-    driver.set_window_size(1200, 1600) # 设置浏览器窗口大小
-
-    try:
-        # 打开HTML文件
-        driver.get(f'file://{html_file_path}')
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, 'text-container'))
-        )
-
-        # 获取页面截图
-        screenshot = driver.execute_cdp_cmd("Page.captureScreenshot", {"format": "png", "fromSurface": True, "captureBeyondViewport": True})
-        with open(cover_filename, 'wb') as f:
-            img = base64.b64decode(screenshot['data'])
-            f.write(img)
-    except Exception as e:
-        print(f"发生错误：{e}")
-    finally:
-        # 关闭浏览器
-        driver.quit()
-
+    # 使用 Playwright 替代 Selenium
+    with sync_playwright() as p:
+        # 启动浏览器（Playwright 会自动下载浏览器，无需单独配置驱动）
+        browser = p.chromium.launch(headless=True)  # 无头模式
+        page = browser.new_page()
+        
+        try:
+            # 打开HTML文件
+            page.set_viewport_size({"width": 1200, "height": 1600})
+            page.goto(f'file://{html_file_path}')
+            
+            # 等待元素加载（Playwright 有更简洁的等待方式）
+            page.wait_for_selector('#text-container')
+            
+            # 获取页面截图
+            page.screenshot(
+                path=cover_filename,
+                full_page=True,
+                type='png'
+            )
+            
+        except Exception as e:
+            print(f"发生错误：{e}")
+        finally:
+            # 关闭浏览器
+            browser.close()
+            if html_file_path.exists():
+                html_file_path.unlink()
 
 # gpt part 生成正文，postist_core.py里也有，但后缀不同表示api不同
 def generating_byds(content, prompt_path):

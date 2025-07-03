@@ -34,7 +34,6 @@ Thumbs.db
 
 # Temp files
 tmp/
-
 # Testing
 .coverage
 htmlcov/
