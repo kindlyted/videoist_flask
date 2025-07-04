@@ -34,12 +34,12 @@ from jinja2 import Template
 # ===== 语音合成 =====
 import edge_tts
 # ===== 浏览器自动化 =====
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+# from selenium import webdriver
+# from selenium.webdriver.common.by import By
+# from selenium.webdriver.chrome.options import Options
+# from selenium.webdriver.chrome.service import Service
+# from selenium.webdriver.support.ui import WebDriverWait
+# from selenium.webdriver.support import expected_conditions as EC
 from playwright.sync_api import sync_playwright, expect
 # ===== AI服务 =====
 from openai import OpenAI
@@ -611,8 +611,9 @@ def creating_cover(text, keywords, cover_filename) -> None:
         keywords = keywords.split(',')
 
     # 设置路径
-    html_template_path = './html/template-xhscover.html'
+    html_template_path = Config.HTML_DIR / 'template-xhscover.html'
     html_file_path = Path('./tmp/working.html').resolve()
+    os.makedirs(html_file_path.parent, exist_ok=True)
 
     # 渲染HTML模板
     with open(html_template_path, 'r', encoding='utf-8') as file:
@@ -1247,21 +1248,15 @@ def process_markdown_images(markdown_content, wp_url, token, dir):
     download_dir = Config.ARTICLE_DIR / dir
     os.makedirs(download_dir, exist_ok=True)
     
-    # 改进的正则表达式，同时匹配alt_text和url
-    # pattern = r'!\[(.*?)\]\((.*?)\)'  # 正确的模式
-    # matches = re.findall(pattern, markdown_content)
-    # image_refs = list(set(matches))  # 去重并转换为列表
-    # 替换部分开始：使用Markdown解析代替正则表达式
+    # 使用Markdown解析代替正则表达式
     html = markdown.markdown(markdown_content)
     soup = BeautifulSoup(html, 'html.parser')
-    image_refs = []
+    image_refs = set()  # 使用集合代替列表
     for img in soup.find_all('img'):
         alt = img.get('alt', '')
         src = img.get('src', '')
         if src:
-            image_refs.append((alt, src))
-    image_refs = list(set(image_refs))  # 去重
-    # 替换部分结束
+            image_refs.add((alt, src))  # 使用add方法添加到集合中
     
     print(f"发现 {len(image_refs)} 个图片引用: {image_refs}")
     if not image_refs:

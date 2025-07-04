@@ -4,6 +4,8 @@ import re
 import json
 import time
 import requests
+import markdown
+from bs4 import BeautifulSoup
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import unquote
 from .video_core import markdown_to_html
@@ -91,10 +93,16 @@ class WeChatPublisher:
         """
         img_map = {}
         
-        # 基础版正则匹配
-        pattern = r'\((.*?)\)'  # 正则表达式
-        matches = re.findall(pattern, md_content)  # 使用 findall 而不是 search
-        image_refs = list(set(matches))  # 去重并转换为列表
+        # 使用BeautifulSoup解析Markdown转换后的HTML
+        html = markdown.markdown(md_content)
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        # 收集所有图片引用
+        image_refs = set()
+        for img in soup.find_all('img'):
+            src = img.get('src', '')
+            if src:
+                image_refs.add(src)  # 只收集src，忽略alt文本
         print(f"发现 {len(image_refs)} 个图片引用: {list(image_refs)}")
 
         # 上传所有图片
